@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Mobile Habit Tracker — Categories & Reminders</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body {
+      -webkit-tap-highlight-color: transparent;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .bar-fill {
+      transition: height 0.35s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease;
+    }
+    .checkbox-pop {
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .checkbox-pop:active {
+      transform: scale(0.97);
+    }
+    /* Hide scrollbar for filter pills */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    input[type="time"]::-webkit-calendar-picker-indicator {
+      filter: invert(0.8);
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex justify-center selection:bg-indigo-500 selection:text-white">
+
+  <!-- Mobile App Container -->
+  <div class="w-full max-w-md bg-slate-900 min-h-screen flex flex-col justify-between border-x border-slate-800/80 shadow-2xl relative">
+
+    <!-- Main Scrollable Content -->
+    <div class="p-5 pb-40 space-y-6 overflow-y-auto">
+
+      <!-- Header & Overall Streak -->
+      <header class="flex items-center justify-between pt-2">
+        <div>
+          <p id="currentDate" class="text-xs font-semibold uppercase tracking-wider text-indigo-400">Sunday, Oct 18</p>
+          <h1 class="text-2xl font-bold tracking-tight text-white mt-0.5">Daily Goals</h1>
+        </div>
+        <div class="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 px-3.5 py-2 rounded-2xl">
+          <i data-lucide="flame" class="w-5 h-5 text-amber-400 fill-amber-400"></i>
+          <div>
+            <span id="overallStreak" class="text-sm font-bold text-amber-300">5</span>
+            <span class="text-xs text-amber-200/80 block -mt-1">Day Streak</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Today's Progress Card -->
+      <section class="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-5 shadow-lg shadow-indigo-950/50">
+        <div class="flex justify-between items-end mb-3">
+          <div>
+            <span class="text-xs font-medium text-indigo-200 uppercase tracking-wider">Today's Completion</span>
+            <div class="flex items-baseline gap-2 mt-1">
+              <span id="progressText" class="text-3xl font-extrabold text-white">0/0</span>
+              <span id="progressStatus" class="text-xs text-indigo-200">Keep going!</span>
+            </div>
+          </div>
+          <span id="progressPercent" class="text-lg font-bold text-indigo-100">0%</span>
+        </div>
+        <div class="w-full h-2.5 bg-indigo-950/50 rounded-full overflow-hidden">
+          <div id="progressBar" class="h-full bg-white rounded-full transition-all duration-500" style="width: 0%"></div>
+        </div>
+      </section>
+
+      <!-- Weekly Streak Bar Chart -->
+      <section class="bg-slate-800/60 border border-slate-700/60 rounded-3xl p-5">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-sm font-semibold text-white">Weekly Consistency</h2>
+            <p class="text-xs text-slate-400">Tap any day below to log or edit past habits</p>
+          </div>
+          <span id="weeklyAvg" class="text-xs font-semibold bg-slate-700/80 text-slate-200 px-2.5 py-1 rounded-lg">0% Avg</span>
+        </div>
+
+        <!-- 7-Day Interactive Columns -->
+        <div id="weeklyChart" class="grid grid-cols-7 gap-2 items-end h-36 pt-4 px-1">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </section>
+
+      <!-- Category Filter Pills & Habits Checklist -->
+      <section class="space-y-3.5">
+        <div class="flex items-center justify-between px-1">
+          <h2 id="selectedDayTitle" class="text-sm font-semibold text-slate-300">Today's Habits</h2>
+          <button id="resetDemoBtn" class="text-xs text-slate-400 hover:text-indigo-400 transition">Reset Demo</button>
+        </div>
+
+        <!-- Filter Pills Bar -->
+        <div id="categoryFilterBar" class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+          <!-- Populated dynamically via JS -->
+        </div>
+
+        <!-- Habit Cards Stack -->
+        <div id="habitList" class="space-y-2.5">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Sticky Bottom Add-Habit Bar with Category & Reminder Time -->
+    <div class="fixed bottom-0 w-full max-w-md bg-slate-900/95 backdrop-blur-md border-t border-slate-800 p-4 shadow-2xl">
+      <form id="addHabitForm" class="space-y-2.5">
+        <div class="flex gap-2">
+          <input
+            id="newHabitInput"
+            type="text"
+            placeholder="New daily habit..."
+            maxlength="36"
+            required
+            class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
+          />
+          <button
+            type="submit"
+            class="bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition text-white px-4 rounded-xl flex items-center justify-center gap-1.5 text-sm font-semibold shadow-lg shadow-indigo-600/30"
+            aria-label="Add Habit"
+          >
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span>Add</span>
+          </button>
+        </div>
+
+        <!-- Category & Time Picker Row -->
+        <div class="flex items-center gap-2">
+          <!-- Category Selector -->
+          <div class="relative flex-1">
+            <select
+              id="newHabitCategory"
+              class="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-3 py-2 text-xs font-medium text-slate-200 focus:outline-none focus:border-indigo-500 appearance-none"
+            >
+              <option value="Health">Health</option>
+              <option value="Work">Work</option>
+              <option value="Mind">Mind</option>
+            </select>
+            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+          </div>
+
+          <!-- Reminder Time Picker -->
+          <div class="flex items-center gap-1.5 bg-slate-800/90 border border-slate-700 rounded-xl px-3 py-1.5">
+            <i data-lucide="bell" class="w-3.5 h-3.5 text-indigo-400"></i>
+            <input
+              id="newHabitTime"
+              type="time"
+              value="09:00"
+              required
+              class="bg-transparent text-xs font-medium text-slate-200 focus:outline-none"
+            />
+          </div>
+        </div>
+      </form>
+    </div>
+
+  </div>
+
+  <script>
+    const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const CATEGORIES = ['All', 'Health', 'Work', 'Mind'];
+    const STORAGE_KEY = 'mobile_habit_dashboard_v2';
+
+    // Category styling map
+    const CATEGORY_STYLES = {
+      Health: {
+        badge: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+        pillActive: 'bg-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/20',
+        dot: 'bg-emerald-400'
+      },
+      Work: {
+        badge: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
+        pillActive: 'bg-sky-500 text-slate-950 font-bold shadow-md shadow-sky-500/20',
+        dot: 'bg-sky-400'
+      },
+      Mind: {
+        badge: 'bg-violet-500/15 text-violet-300 border-violet-500/30',
+        pillActive: 'bg-violet-500 text-white font-bold shadow-md shadow-violet-500/25',
+        dot: 'bg-violet-400'
+      }
+    };
+
+    // Default seed data with categories and 24h reminder times
+    const defaultState = {
+      selectedDayIndex: 6, // Sunday (Today)
+      selectedCategory: 'All',
+      habits: [
+        {
+          id: 'h1',
+          name: 'Hydrate (2.5L Water)',
+          category: 'Health',
+          reminderTime: '08:00',
+          history: [true, true, true, false, true, true, true]
+        },
+        {
+          id: 'h2',
+          name: 'Deep Work Block (90m)',
+          category: 'Work',
+          reminderTime: '09:30',
+          history: [true, true, true, true, true, false, true]
+        },
+        {
+          id: 'h3',
+          name: '30m Mobility / Run',
+          category: 'Health',
+          reminderTime: '17:30',
+          history: [true, false, true, true, true, true, false]
+        },
+        {
+          id: 'h4',
+          name: 'Inbox Zero & Plan Tomorrow',
+          category: 'Work',
+          reminderTime: '18:30',
+          history: [false, true, true, true, true, false, false]
+        },
+        {
+          id: 'h5',
+          name: 'Read 20 Pages & Journal',
+          category: 'Mind',
+          reminderTime: '21:30',
+          history: [true, true, false, true, true, true, true]
+        }
+      ]
+    };
+
+    let state = loadState();
+
+    function loadState() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return JSON.parse(JSON.stringify(defaultState));
+      const parsed = JSON.parse(saved);
+      if (!parsed.selectedCategory) parsed.selectedCategory = 'All';
+      return parsed;
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    // Format "17:30" -> "5:30 PM"
+    function formatTime12Hr(timeStr) {
+      if (!timeStr) return '09:00 AM';
+      const [hourStr, minute] = timeStr.split(':');
+      let hour = parseInt(hourStr, 10);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      hour = hour % 12 || 12;
+      return `${hour}:${minute} ${ampm}`;
+    }
+
+    // Consecutive streak up to selected day
+    function getHabitStreak(history, upToDay) {
+      let streak = 0;
+      for (let i = upToDay; i >= 0; i--) {
+        if (history[i]) streak++;
+        else break;
+      }
+      return streak;
+    }
+
+    // Days with >= 50% completion across the week
+    function getOverallStreak() {
+      if (state.habits.length === 0) return 0;
+      let streak = 0;
+      for (let d = 6; d >= 0; d--) {
+        const completed = state.habits.filter(h => h.history[d]).length;
+        if (completed / state.habits.length >= 0.5) streak++;
+        else break;
+      }
+      return streak;
+    }
+
+    function renderFilterPills() {
+      const barEl = document.getElementById('categoryFilterBar');
+      barEl.innerHTML = '';
+
+      CATEGORIES.forEach(cat => {
+        const isActive = state.selectedCategory === cat;
+        const count = cat === 'All'
+          ? state.habits.length
+          : state.habits.filter(h => h.category === cat).length;
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+
+        let activeClass = 'bg-indigo-600 text-white font-semibold shadow-md shadow-indigo-600/25 border-indigo-500';
+        if (cat !== 'All' && CATEGORY_STYLES[cat]) {
+          activeClass = CATEGORY_STYLES[cat].pillActive + ' border-transparent';
+        }
+
+        const inactiveClass = 'bg-slate-800/80 text-slate-300 border-slate-700/70 hover:bg-slate-800';
+
+        btn.className = `flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs border transition shrink-0 ${
+          isActive ? activeClass : inactiveClass
+        }`;
+
+        const dotHtml = cat !== 'All'
+          ? `<span class="w-2 h-2 rounded-full ${ isActive ? 'bg-current' : CATEGORY_STYLES[cat].dot }"></span>`
+          : '';
+
+        btn.innerHTML = `
+          ${dotHtml}
+          <span>${cat}</span>
+          <span class="text-[10px] px-1.5 py-0.2 rounded-full ${isActive ? 'bg-black/20' : 'bg-slate-700/80 text-slate-300'}">${count}</span>
+        `;
+
+        btn.onclick = () => {
+          state.selectedCategory = cat;
+          saveState();
+          renderDashboard();
+        };
+
+        barEl.appendChild(btn);
+      });
+    }
+
+    function renderDashboard() {
+      const totalHabits = state.habits.length;
+      const dayIdx = state.selectedDayIndex;
+      const completedToday = state.habits.filter(h => h.history[dayIdx]).length;
+      const pctToday = totalHabits ? Math.round((completedToday / totalHabits) * 100) : 0;
+
+      // Update Top Summary
+      document.getElementById('overallStreak').textContent = getOverallStreak();
+      document.getElementById('progressText').textContent = `${completedToday}/${totalHabits}`;
+      document.getElementById('progressPercent').textContent = `${pctToday}%`;
+      document.getElementById('progressBar').style.width = `${pctToday}%`;
+
+      const statusEl = document.getElementById('progressStatus');
+      if (pctToday === 100 && totalHabits > 0) statusEl.textContent = 'All goals crushed!';
+      else if (pctToday >= 50) statusEl.textContent = 'Strong momentum!';
+      else statusEl.textContent = 'Keep going!';
+
+      document.getElementById('selectedDayTitle').textContent =
+        dayIdx === 6 ? "Today's Habits (Sun)" : `${DAYS[dayIdx]}'s Habits`;
+
+      // Render 7-Day Streak Bar Chart
+      const chartEl = document.getElementById('weeklyChart');
+      chartEl.innerHTML = '';
+      let weeklySum = 0;
+
+      DAYS.forEach((dayName, idx) => {
+        const doneCount = state.habits.filter(h => h.history[idx]).length;
+        const pct = totalHabits ? Math.round((doneCount / totalHabits) * 100) : 0;
+        weeklySum += pct;
+        const isSelected = idx === state.selectedDayIndex;
+
+        const barColor = pct === 100
+          ? 'bg-emerald-400'
+          : pct >= 50
+            ? 'bg-indigo-500'
+            : 'bg-slate-600';
+
+        const col = document.createElement('button');
+        col.type = 'button';
+        col.className = `flex flex-col items-center justify-end h-full group focus:outline-none ${isSelected ? 'scale-105' : 'opacity-80 hover:opacity-100'}`;
+        col.onclick = () => {
+          state.selectedDayIndex = idx;
+          saveState();
+          renderDashboard();
+        };
+
+        col.innerHTML = `
+          <span class="text-[10px] font-semibold mb-1 ${isSelected ? 'text-indigo-300' : 'text-slate-400'}">${doneCount}/${totalHabits}</span>
+          <div class="w-full max-w-[28px] h-20 bg-slate-900/90 rounded-xl p-0.5 flex items-end overflow-hidden border ${isSelected ? 'border-indigo-400 shadow-md shadow-indigo-500/20' : 'border-slate-700/60'}">
+            <div class="w-full rounded-lg bar-fill ${barColor}" style="height: ${Math.max(pct, 8)}%"></div>
+          </div>
+          <span class="text-xs mt-2 font-medium ${isSelected ? 'text-white font-bold' : 'text-slate-400'}">${dayName}</span>
+        `;
+        chartEl.appendChild(col);
+      });
+
+      document.getElementById('weeklyAvg').textContent = `${Math.round(weeklySum / 7)}% Avg`;
+
+      // Render Filter Pills
+      renderFilterPills();
+
+      // Filter & Sort Habits by Reminder Time
+      const listEl = document.getElementById('habitList');
+      listEl.innerHTML = '';
+
+      const filteredHabits = state.habits
+        .filter(h => state.selectedCategory === 'All' || h.category === state.selectedCategory)
+        .sort((a, b) => (a.reminderTime || '09:00').localeCompare(b.reminderTime || '09:00'));
+
+      if (filteredHabits.length === 0) {
+        listEl.innerHTML = `
+          <div class="text-center py-8 px-4 rounded-2xl border border-dashed border-slate-800 text-slate-400 text-xs">
+            No habits in <span class="text-slate-200 font-semibold">${state.selectedCategory}</span> yet. Add one below!
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      filteredHabits.forEach((habit) => {
+        const isDone = habit.history[dayIdx];
+        const streak = getHabitStreak(habit.history, dayIdx);
+        const catStyle = CATEGORY_STYLES[habit.category] || CATEGORY_STYLES.Health;
+
+        const card = document.createElement('div');
+        card.className = `flex items-center justify-between p-4 rounded-2xl border transition cursor-pointer select-none checkbox-pop ${
+          isDone
+            ? 'bg-indigo-950/35 border-indigo-500/40 text-white'
+            : 'bg-slate-800/40 border-slate-800 text-slate-200 hover:border-slate-700'
+        }`;
+
+        card.onclick = (e) => {
+          if (e.target.closest('.delete-btn')) return;
+          habit.history[dayIdx] = !habit.history[dayIdx];
+          saveState();
+          renderDashboard();
+        };
+
+        card.innerHTML = `
+          <div class="flex items-start gap-3.5 min-w-0 pr-2">
+            <div class="w-6 h-6 mt-0.5 rounded-lg flex items-center justify-center shrink-0 transition ${
+              isDone ? 'bg-emerald-500 text-slate-950' : 'border-2 border-slate-600 bg-slate-900'
+            }">
+              ${isDone ? '<i data-lucide="check" class="w-4 h-4 stroke-[3]"></i>' : ''}
+            </div>
+
+            <div class="min-w-0">
+              <p class="text-sm font-semibold truncate ${isDone ? 'line-through text-slate-400' : 'text-white'}">${habit.name}</p>
+
+              <!-- Badges Row: Category Pill + Reminder Time Badge + Streak -->
+              <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
+                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-md border ${catStyle.badge}">
+                  ${habit.category}
+                </span>
+
+                <span class="text-[11px] text-slate-300 bg-slate-800/90 border border-slate-700/80 px-2 py-0.5 rounded-md flex items-center gap-1">
+                  <i data-lucide="clock" class="w-3 h-3 text-indigo-400"></i>
+                  ${formatTime12Hr(habit.reminderTime)}
+                </span>
+
+                <span class="text-[11px] text-amber-400 font-medium flex items-center gap-0.5 ml-0.5">
+                  <i data-lucide="zap" class="w-3 h-3 fill-amber-400"></i> ${streak}d
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <button class="delete-btn text-slate-500 hover:text-rose-400 p-1.5 rounded-lg transition shrink-0" aria-label="Delete habit">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+        `;
+
+        card.querySelector('.delete-btn').onclick = () => {
+          state.habits = state.habits.filter(h => h.id !== habit.id);
+          saveState();
+          renderDashboard();
+        };
+
+        listEl.appendChild(card);
+      });
+
+      lucide.createIcons();
+    }
+
+    // Add New Habit Handler with Category & Reminder Time
+    document.getElementById('addHabitForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = document.getElementById('newHabitInput');
+      const categorySelect = document.getElementById('newHabitCategory');
+      const timeInput = document.getElementById('newHabitTime');
+
+      const name = input.value.trim();
+      if (!name) return;
+
+      const newCategory = categorySelect.value;
+
+      state.habits.push({
+        id: 'h_' + Date.now(),
+        name,
+        category: newCategory,
+        reminderTime: timeInput.value || '09:00',
+        history: [false, false, false, false, false, false, false]
+      });
+
+      // If currently filtering by another category, switch to the newly added habit's category
+      if (state.selectedCategory !== 'All' && state.selectedCategory !== newCategory) {
+        state.selectedCategory = newCategory;
+      }
+
+      input.value = '';
+      saveState();
+      renderDashboard();
+    });
+
+    // Reset Demo Handler
+    document.getElementById('resetDemoBtn').addEventListener('click', () => {
+      state = JSON.parse(JSON.stringify(defaultState));
+      saveState();
+      renderDashboard();
+    });
+
+    // Initial Render
+    renderDashboard();
+  </script>
+</body>
+</html>
